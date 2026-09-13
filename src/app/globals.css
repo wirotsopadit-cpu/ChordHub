@@ -1,0 +1,55 @@
+@import "tailwindcss";
+
+@layer base {
+    html {
+        scroll-behavior: smooth;
+    }
+
+    body {
+        font-family: var(--font-thai), system-ui, sans-serif;
+        -webkit-text-size-adjust: 100%;
+    }
+}
+
+@layer components {
+
+    /* ตัดคำภาษาไทยอย่างถูกต้อง */
+    .lyric-line {
+        word-break: break-word;
+        overflow-wrap: anywhere;
+        line-break: auto;
+        hyphens: none;
+    }
+
+    /* ป้องกัน iOS zoom ตอนแตะ input */
+    .chord-sheet input,
+    .chord-sheet select {
+        font-size: 16px;
+    }
+}
+
+/* โหมดพิมพ์ */
+@media print {
+    .no-print {
+        display: none !important;
+    }
+
+    .chord-sheet {
+        color: #000;
+        font-size: 12pt;
+    }
+
+    .chord-sheet button {
+        color: #000 !important;
+    }
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(100%);
+    }
+
+    to {
+        transform: translateY(0);
+    }
+}

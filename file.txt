@@ -1,0 +1,31 @@
+src/
+├── app/
+│   ├── layout.tsx
+│   ├── globals.css
+│   └── song/[slug]/
+│       ├── page.tsx              ← Server Component (ดึงข้อมูล + SEO)
+│       ├── loading.tsx           ← Skeleton
+│       ├── not-found.tsx
+│       └── error.tsx
+├── components/song/
+│   ├── SongView.tsx              ← Client orchestrator
+│   ├── SongHeader.tsx
+│   ├── ControlBar.tsx            ← Desktop sticky bar
+│   ├── MobileDock.tsx            ← Mobile bottom sheet
+│   ├── ChordSheet.tsx            ← หัวใจการ render
+│   ├── ChordDiagram.tsx
+│   ├── FavoriteButton.tsx
+│   └── SongSkeleton.tsx
+├── hooks/
+│   ├── useSongSettings.ts        ← Zustand + localStorage
+│   ├── useAutoScroll.ts
+│   └── useWakeLock.ts
+├── lib/
+│   ├── firebase.client.ts
+│   ├── firebase.admin.ts
+│   ├── songs.server.ts           ← Data layer
+│   ├── chords.ts
+│   ├── chordpro.ts
+│   └── chordShapes.ts
+├── actions/song.actions.ts       ← Server Actions
+└── types/song.ts
