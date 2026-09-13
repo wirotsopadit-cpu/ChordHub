@@ -39,7 +39,12 @@ import {
   removeSongFromPlaylistAction,
   deletePlaylistAction,
 } from '@/actions/playlist.actions';
+import {
+  getUserUploadedSongs,
+  deleteSongAction as deleteUploadedSongAction,
+} from '@/actions/song.actions';
 import type { UserPlaylist } from '@/types/playlist';
+import type { Song } from '@/types/song';
 
 interface MemberState {
   uid: string;
@@ -55,10 +60,11 @@ export default function ProfilePage() {
   const [member, setMember] = useState<MemberState | null>(null);
   const [isAuthChecking, setIsAuthChecking] = useState(true);
 
-  // Tab State: 'playlists' | 'favorites' | 'comments' | 'settings'
-  const [activeTab, setActiveTab] = useState<'playlists' | 'favorites' | 'comments' | 'settings'>('playlists');
+  // Tab State: 'my-songs' | 'playlists' | 'favorites' | 'comments' | 'settings'
+  const [activeTab, setActiveTab] = useState<'my-songs' | 'playlists' | 'favorites' | 'comments' | 'settings'>('my-songs');
 
-  // Playlists, Favorites & Comments Data
+  // Songs, Playlists, Favorites & Comments Data
+  const [userSongs, setUserSongs] = useState<Song[]>([]);
   const [playlists, setPlaylists] = useState<UserPlaylist[]>([]);
   const [favorites, setFavorites] = useState<UserFavoriteItem[]>([]);
   const [comments, setComments] = useState<UserCommentItem[]>([]);
@@ -118,14 +124,16 @@ export default function ProfilePage() {
   const loadUserData = async (uid: string) => {
     setIsLoadingData(true);
     try {
-      const [plistData, favData, comData] = await Promise.all([
+      const [plistData, favData, comData, songData] = await Promise.all([
         getUserPlaylists(uid),
         getUserFavorites(uid),
         getUserComments(uid),
+        getUserUploadedSongs(uid),
       ]);
       setPlaylists(plistData);
       setFavorites(favData);
       setComments(comData);
+      setUserSongs(songData);
 
       // Load saved preferences if any from localStorage
       const savedPref = localStorage.getItem(`chordhub_pref_${uid}`);
@@ -140,6 +148,21 @@ export default function ProfilePage() {
       console.error('Failed to load user data:', err);
     } finally {
       setIsLoadingData(false);
+    }
+  };
+
+  const handleDeleteUserSong = async (slug: string) => {
+    if (!member) return;
+    if (!confirm('คุณต้องการลบเพลงนี้ออกจากระบบใช่หรือไม่? การกระทำนี้ไม่สามารถย้อนกลับได้')) return;
+    try {
+      const res = await deleteUploadedSongAction(slug, member.uid);
+      if (res.ok) {
+        setUserSongs(prev => prev.filter(s => s.slug !== slug && s.id !== slug));
+      } else {
+        alert(res.error || 'ลบเพลงไม่สำเร็จ');
+      }
+    } catch (err: any) {
+      alert(err.message || 'เกิดข้อผิดพลาดในการลบเพลง');
     }
   };
 
@@ -392,6 +415,30 @@ export default function ProfilePage() {
 
         {/* Tab Navigation */}
         <div className="flex items-center gap-2 border-b border-zinc-800 pb-3 mb-6 overflow-x-auto">
+          {/* TAB 0: MY SONGS */}
+          <button
+            type="button"
+            onClick={() => {
+              setActiveTab('my-songs');
+              setSelectedPlaylist(null);
+            }}
+            className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition shrink-0 ${
+              activeTab === 'my-songs'
+                ? 'bg-emerald-500 text-zinc-950 shadow'
+                : 'text-zinc-400 hover:text-white hover:bg-zinc-900'
+            }`}
+          >
+            <Music size={15} />
+            <span>เพลงของฉัน</span>
+            <span
+              className={`rounded-full px-1.5 py-0.2 text-[10px] ${
+                activeTab === 'my-songs' ? 'bg-zinc-950 text-white' : 'bg-zinc-800 text-zinc-400'
+              }`}
+            >
+              {userSongs.length}
+            </span>
+          </button>
+
           {/* TAB 1: PLAYLISTS */}
           <button
             type="button"
@@ -481,6 +528,118 @@ export default function ProfilePage() {
             <span>ตั้งค่าข้อมูล</span>
           </button>
         </div>
+
+        {/* TAB 0: MY SONGS CONTENT */}
+        {activeTab === 'my-songs' && (
+          <div>
+            <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+              <div>
+                <h3 className="text-base font-bold text-zinc-100">เพลงที่คุณเพิ่มเข้าระบบ</h3>
+                <p className="text-xs text-zinc-400 mt-0.5">
+                  คุณสามารถแก้ไขคอร์ด เนื้อเพลง หรือลบเพลงที่คุณเป็นผู้เพิ่มได้ตลอดเวลา
+                </p>
+              </div>
+
+              <Link
+                href="/admin/add-song"
+                className="flex items-center gap-1.5 rounded-xl bg-emerald-500 px-4 py-2 text-xs font-bold text-zinc-950 hover:bg-emerald-400 transition shadow"
+              >
+                <Plus size={15} />
+                <span>+ เพิ่มเพลงใหม่</span>
+              </Link>
+            </div>
+
+            {isLoadingData ? (
+              <div className="flex items-center justify-center py-12 text-zinc-500 gap-2">
+                <Loader2 size={20} className="animate-spin text-emerald-400" />
+                <span className="text-xs">กำลังโหลดเพลงของคุณ...</span>
+              </div>
+            ) : userSongs.length === 0 ? (
+              <div className="rounded-3xl border border-zinc-800 bg-zinc-900/30 py-16 text-center">
+                <Music size={40} className="mx-auto text-zinc-600 mb-3 opacity-60" />
+                <h3 className="text-base font-bold text-zinc-200">คุณยังไม่ได้เพิ่มเพลงในระบบ</h3>
+                <p className="text-xs text-zinc-400 mt-1 max-w-sm mx-auto mb-6">
+                  ร่วมเป็นส่วนหนึ่งของคอมมูนิตี้ดนตรี เพิ่มคอร์ดเพลงโปรดของคุณเพื่อให้เพื่อนๆ ได้ฝึกเล่น
+                </p>
+                <Link
+                  href="/admin/add-song"
+                  className="inline-flex items-center gap-2 rounded-xl bg-emerald-500 px-5 py-2.5 text-xs font-bold text-zinc-950 hover:bg-emerald-400 transition shadow"
+                >
+                  <Plus size={15} />
+                  <span>เพิ่มเพลงแรกของคุณทันที</span>
+                </Link>
+              </div>
+            ) : (
+              <div className="grid gap-3 sm:grid-cols-2">
+                {userSongs.map(song => (
+                  <div
+                    key={song.slug || song.id}
+                    className="group flex flex-col justify-between rounded-2xl border border-zinc-800 bg-zinc-900/40 p-4 hover:border-zinc-700 hover:bg-zinc-900/80 transition shadow-sm"
+                  >
+                    <div>
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <Link
+                            href={`/song/${song.slug || song.id}`}
+                            className="text-sm font-bold text-zinc-100 hover:text-emerald-400 transition truncate block"
+                          >
+                            {song.title}
+                          </Link>
+                          <p className="text-xs text-zinc-400 truncate mt-0.5">{song.artist}</p>
+                        </div>
+                        <span className="font-mono text-[11px] font-semibold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20 shrink-0">
+                          คีย์ {song.originalKey}
+                        </span>
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-2 mt-3 text-[11px] text-zinc-500">
+                        {song.defaultCapo > 0 && (
+                          <span className="bg-zinc-800 px-2 py-0.5 rounded text-zinc-300">
+                            คาโป {song.defaultCapo}
+                          </span>
+                        )}
+                        <span className="bg-zinc-800 px-2 py-0.5 rounded text-zinc-400 capitalize">
+                          {song.difficulty}
+                        </span>
+                        <span>เข้าชม {song.viewCount.toLocaleString()} ครั้ง</span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between border-t border-zinc-800/80 pt-3 mt-4">
+                      <Link
+                        href={`/song/${song.slug || song.id}`}
+                        className="flex items-center gap-1 text-xs font-bold text-zinc-300 hover:text-white transition"
+                      >
+                        <Play size={12} className="fill-zinc-300" />
+                        <span>เล่นคอร์ด</span>
+                      </Link>
+
+                      <div className="flex items-center gap-2">
+                        <Link
+                          href={`/admin/add-song?edit=${song.slug || song.id}`}
+                          className="flex items-center gap-1 rounded-lg border border-sky-500/30 bg-sky-500/10 px-2.5 py-1 text-xs font-semibold text-sky-400 hover:bg-sky-500/20 transition"
+                          title="แก้ไขเพลงนี้"
+                        >
+                          <Edit3 size={12} />
+                          <span>แก้ไข</span>
+                        </Link>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteUserSong(song.slug || song.id)}
+                          className="flex items-center gap-1 rounded-lg border border-rose-500/30 bg-rose-500/10 px-2.5 py-1 text-xs font-semibold text-rose-400 hover:bg-rose-500/20 transition"
+                          title="ลบเพลงนี้"
+                        >
+                          <Trash2 size={12} />
+                          <span>ลบ</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* TAB 1: PLAYLISTS CONTENT */}
         {activeTab === 'playlists' && (

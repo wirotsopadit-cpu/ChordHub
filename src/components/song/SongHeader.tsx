@@ -6,6 +6,7 @@ import type { Song } from '@/types/song';
 import { transposeKey, transposeChord } from '@/lib/chords';
 import FavoriteButton from './FavoriteButton';
 import AddToPlaylistButton from './AddToPlaylistButton';
+import SongOwnerActions from './SongOwnerActions';
 
 const DIFF_LABEL = { easy: 'ง่าย', medium: 'ปานกลาง', hard: 'ยาก' } as const;
 const DIFF_STYLE = {
@@ -37,6 +38,7 @@ export default function SongHeader({
         </div>
 
         <div className="flex items-center gap-2">
+          <SongOwnerActions song={song} />
           <AddToPlaylistButton
             songId={song.id}
             title={song.title}

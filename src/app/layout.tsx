@@ -54,12 +54,6 @@ export default function RootLayout({
               </a>
               <a href="/#popular" className="hover:text-emerald-400 transition hidden sm:inline">เพลงฮิต</a>
               <a href="/#chords" className="hover:text-emerald-400 transition hidden sm:inline">ตารางคอร์ด</a>
-              <a
-                href="/admin/add-song"
-                className="flex items-center gap-1.5 rounded-lg bg-emerald-500/15 border border-emerald-500/30 px-3 py-1 text-xs font-semibold text-emerald-400 hover:bg-emerald-500/25 transition"
-              >
-                <span>+ เพิ่มเพลง</span>
-              </a>
 
               <NavbarUserButton />
             </nav>

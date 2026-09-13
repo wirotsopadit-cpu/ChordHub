@@ -41,10 +41,12 @@ export interface CreateSongInput {
   tags?: string[];
   difficulty?: Difficulty;
   slug?: string;
+  createdBy?: string;
+  createdByName?: string;
 }
 
 /**
- * เพิ่มเพลงใหม่ลงใน Firebase Firestore
+ * เพิ่มเพลงใหม่ลงใน Firebase Firestore (ผูกสิทธิ์กับผู้สร้าง)
  */
 export async function createSong(input: CreateSongInput): Promise<{ ok: boolean; slug?: string; error?: string }> {
   if (!input.title || !input.artist || !input.chordpro) {
@@ -75,7 +77,8 @@ export async function createSong(input: CreateSongInput): Promise<{ ok: boolean;
       difficulty: input.difficulty || 'medium',
       status: 'published',
       viewCount: 0,
-      createdBy: 'admin',
+      createdBy: input.createdBy?.trim() || 'admin',
+      createdByName: input.createdByName?.trim() || 'แอดมิน',
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
       slug,
@@ -94,6 +97,189 @@ export async function createSong(input: CreateSongInput): Promise<{ ok: boolean;
   } catch (err: any) {
     console.error('[createSong] Error adding song:', err);
     return { ok: false, error: err.message || 'เกิดข้อผิดพลาดในการบันทึกเพลง' };
+  }
+}
+
+/**
+ * แก้ไขข้อมูลเพลง (เฉพาะเจ้าของเพลงหรือ admin)
+ */
+export async function updateSongAction(
+  slug: string,
+  input: Partial<CreateSongInput>,
+  userId: string
+): Promise<{ ok: boolean; error?: string }> {
+  if (!slug || !userId) return { ok: false, error: 'ข้อมูลไม่ครบถ้วน' };
+  if (!adminDb) return { ok: false, error: 'ไม่พบการเชื่อมต่อฐานข้อมูล' };
+
+  try {
+    const docRef = adminDb.collection('songs').doc(slug);
+    const doc = await docRef.get();
+    if (!doc.exists) return { ok: false, error: 'ไม่พบเพลงนี้ในระบบ' };
+
+    const data = doc.data()!;
+    const isOwner = data.createdBy === userId || data.createdBy === 'admin';
+    if (!isOwner) {
+      return { ok: false, error: 'คุณไม่มีสิทธิ์แก้ไขเพลงนี้ เนื่องจากไม่ใช่เจ้าของเพลง' };
+    }
+
+    const updates: Record<string, any> = {
+      updatedAt: Timestamp.now(),
+    };
+
+    if (input.title) updates.title = input.title.trim();
+    if (input.artist) updates.artist = input.artist.trim();
+    if (input.originalKey) updates.originalKey = input.originalKey;
+    if (input.defaultCapo !== undefined) updates.defaultCapo = Number(input.defaultCapo);
+    if (input.tempo !== undefined) updates.tempo = input.tempo ? Number(input.tempo) : null;
+    if (input.timeSignature) updates.timeSignature = input.timeSignature;
+    if (input.strumming !== undefined) updates.strumming = input.strumming.trim();
+    if (input.difficulty) updates.difficulty = input.difficulty;
+    if (input.tags) updates.tags = input.tags;
+
+    if (input.chordpro) {
+      updates.chordpro = input.chordpro.trim();
+      updates.chordsUsed = extractChords(input.chordpro);
+    }
+
+    await docRef.update(updates);
+
+    revalidatePath('/');
+    revalidatePath('/search');
+    revalidatePath(`/song/${slug}`);
+    revalidatePath('/api/search-index');
+
+    return { ok: true };
+  } catch (err: any) {
+    console.error('[updateSongAction] Error:', err);
+    return { ok: false, error: err.message || 'เกิดข้อผิดพลาดในการแก้ไขเพลง' };
+  }
+}
+
+/**
+ * ลบเพลงออกจากระบบ (เฉพาะเจ้าของเพลงหรือ admin)
+ */
+export async function deleteSongAction(
+  slug: string,
+  userId: string
+): Promise<{ ok: boolean; error?: string }> {
+  if (!slug || !userId) return { ok: false, error: 'ข้อมูลไม่ครบถ้วน' };
+  if (!adminDb) return { ok: false, error: 'ไม่พบการเชื่อมต่อฐานข้อมูล' };
+
+  try {
+    const docRef = adminDb.collection('songs').doc(slug);
+    const doc = await docRef.get();
+    if (!doc.exists) return { ok: false, error: 'ไม่พบเพลงนี้ในระบบ' };
+
+    const data = doc.data()!;
+    const isOwner = data.createdBy === userId || data.createdBy === 'admin';
+    if (!isOwner) {
+      return { ok: false, error: 'คุณไม่มีสิทธิ์ลบเพลงนี้ เนื่องจากไม่ใช่เจ้าของเพลง' };
+    }
+
+    await docRef.delete();
+
+    revalidatePath('/');
+    revalidatePath('/search');
+    revalidatePath(`/song/${slug}`);
+    revalidatePath('/api/search-index');
+
+    return { ok: true };
+  } catch (err: any) {
+    console.error('[deleteSongAction] Error:', err);
+    return { ok: false, error: err.message || 'เกิดข้อผิดพลาดในการลบเพลง' };
+  }
+}
+
+/**
+ * ดึงรายการเพลงทั้งหมดที่ผู้ใช้นี้เป็นผู้เพิ่ม (My Songs)
+ */
+export async function getUserUploadedSongs(userId: string): Promise<Song[]> {
+  if (!userId || !adminDb) return [];
+  try {
+    const snap = await adminDb
+      .collection('songs')
+      .where('createdBy', '==', userId)
+      .get();
+
+    if (snap.empty) return [];
+
+    const list: Song[] = [];
+    snap.forEach(doc => {
+      const d = doc.data();
+      list.push({
+        id: doc.id,
+        slug: d.slug || doc.id,
+        title: d.title || '',
+        artist: d.artist || '',
+        artistId: d.artistId || '',
+        album: d.album || '',
+        originalKey: d.originalKey || 'C',
+        defaultCapo: d.defaultCapo ?? 0,
+        tempo: d.tempo ?? undefined,
+        timeSignature: d.timeSignature || '4/4',
+        strumming: d.strumming || '',
+        chordpro: d.chordpro || '',
+        chordsUsed: d.chordsUsed || [],
+        tags: d.tags || [],
+        difficulty: d.difficulty || 'medium',
+        youtubeId: d.youtubeId || undefined,
+        viewCount: d.viewCount || 0,
+        status: d.status || 'published',
+        createdBy: d.createdBy || '',
+        createdAt: d.createdAt?.toDate ? d.createdAt.toDate().toISOString() : new Date().toISOString(),
+        updatedAt: d.updatedAt?.toDate ? d.updatedAt.toDate().toISOString() : new Date().toISOString(),
+      });
+    });
+
+    list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    return list;
+  } catch (err) {
+    console.error('[getUserUploadedSongs] Error:', err);
+    return [];
+  }
+}
+
+/**
+ * ดึงข้อมูลเพลงสำหรับแก้ไข พร้อมตรวจสอบสิทธิ์
+ */
+export async function getSongForEditAction(
+  slug: string,
+  userId: string
+): Promise<{ ok: boolean; song?: Song; isOwner?: boolean; error?: string }> {
+  if (!slug || !adminDb) return { ok: false, error: 'ไม่พบเพลง' };
+  try {
+    const doc = await adminDb.collection('songs').doc(slug).get();
+    if (!doc.exists) return { ok: false, error: 'ไม่พบเพลงนี้ในระบบ' };
+    const d = doc.data()!;
+    const isOwner = d.createdBy === userId || d.createdBy === 'admin';
+
+    const song: Song = {
+      id: doc.id,
+      slug: d.slug || doc.id,
+      title: d.title || '',
+      artist: d.artist || '',
+      artistId: d.artistId || '',
+      album: d.album || '',
+      originalKey: d.originalKey || 'C',
+      defaultCapo: d.defaultCapo ?? 0,
+      tempo: d.tempo ?? undefined,
+      timeSignature: d.timeSignature || '4/4',
+      strumming: d.strumming || '',
+      chordpro: d.chordpro || '',
+      chordsUsed: d.chordsUsed || [],
+      tags: d.tags || [],
+      difficulty: d.difficulty || 'medium',
+      youtubeId: d.youtubeId || undefined,
+      viewCount: d.viewCount || 0,
+      status: d.status || 'published',
+      createdBy: d.createdBy || '',
+      createdAt: d.createdAt?.toDate ? d.createdAt.toDate().toISOString() : new Date().toISOString(),
+      updatedAt: d.updatedAt?.toDate ? d.updatedAt.toDate().toISOString() : new Date().toISOString(),
+    };
+
+    return { ok: true, song, isOwner };
+  } catch (err: any) {
+    return { ok: false, error: err.message };
   }
 }
 
