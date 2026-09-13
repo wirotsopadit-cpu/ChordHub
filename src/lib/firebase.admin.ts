@@ -7,11 +7,15 @@ import { getFirestore, type Firestore } from 'firebase-admin/firestore';
 function createAdminApp(): App | null {
   if (getApps().length) return getApp();
 
-  // 1. วิธีที่ 1: ตรวจสอบจาก Base64 string (แนะนำสำหรับ Vercel / Cloud Deployment)
-  const rawB64 = process.env.FIREBASE_SERVICE_ACCOUNT_B64;
-  if (rawB64) {
+  // 1. วิธีที่ 1: ตรวจสอบจาก JSON string หรือ Base64 string (แนะนำสำหรับ Vercel / Cloud Deployment)
+  const rawCred = process.env.FIREBASE_SERVICE_ACCOUNT_JSON || process.env.FIREBASE_SERVICE_ACCOUNT_B64 || process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
+  if (rawCred) {
     try {
-      const sa = JSON.parse(Buffer.from(rawB64, 'base64').toString('utf8'));
+      let str = rawCred.trim();
+      if (!str.startsWith('{')) {
+        str = Buffer.from(str, 'base64').toString('utf8');
+      }
+      const sa = JSON.parse(str);
       return initializeApp({
         credential: cert({
           projectId: sa.project_id,
@@ -20,7 +24,7 @@ function createAdminApp(): App | null {
         }),
       });
     } catch (err) {
-      console.warn('[firebase.admin] ล้มเหลวในการอ่าน FIREBASE_SERVICE_ACCOUNT_B64:', err);
+      console.warn('[firebase.admin] ล้มเหลวในการอ่าน FIREBASE_SERVICE_ACCOUNT_JSON/B64:', err);
     }
   }
 
