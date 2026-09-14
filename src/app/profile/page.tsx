@@ -577,19 +577,36 @@ export default function ProfilePage() {
                     className="group flex flex-col justify-between rounded-2xl border border-zinc-800 bg-zinc-900/40 p-4 hover:border-zinc-700 hover:bg-zinc-900/80 transition shadow-sm"
                   >
                     <div>
-                      <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-start gap-3">
+                        {song.coverImage && (
+                          <div className="relative shrink-0 w-12 h-12 rounded-xl overflow-hidden border border-zinc-800 bg-zinc-950">
+                            <img
+                              src={song.coverImage}
+                              alt={song.title}
+                              className="w-full h-full object-cover"
+                              onError={e => { (e.target as HTMLElement).style.display = 'none'; }}
+                            />
+                            {song.youtubeId && (
+                              <span className="absolute bottom-0.5 right-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-red-600 text-white text-[8px] shadow">
+                                ▶
+                              </span>
+                            )}
+                          </div>
+                        )}
                         <div className="min-w-0 flex-1">
-                          <Link
-                            href={`/song/${song.slug || song.id}`}
-                            className="text-sm font-bold text-zinc-100 hover:text-emerald-400 transition truncate block"
-                          >
-                            {song.title}
-                          </Link>
+                          <div className="flex items-start justify-between gap-2">
+                            <Link
+                              href={`/song/${song.slug || song.id}`}
+                              className="text-sm font-bold text-zinc-100 hover:text-emerald-400 transition truncate block"
+                            >
+                              {song.title}
+                            </Link>
+                            <span className="font-mono text-[11px] font-semibold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20 shrink-0">
+                              คีย์ {song.originalKey}
+                            </span>
+                          </div>
                           <p className="text-xs text-zinc-400 truncate mt-0.5">{song.artist}</p>
                         </div>
-                        <span className="font-mono text-[11px] font-semibold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20 shrink-0">
-                          คีย์ {song.originalKey}
-                        </span>
                       </div>
 
                       <div className="flex flex-wrap items-center gap-2 mt-3 text-[11px] text-zinc-500">

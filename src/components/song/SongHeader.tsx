@@ -1,7 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { Eye, Music2, Gauge, Guitar } from 'lucide-react';
+import { Eye, Music2, Gauge, Guitar, Play } from 'lucide-react';
+import YoutubeIcon from '@/components/icons/YoutubeIcon';
 import type { Song } from '@/types/song';
 import { transposeKey, transposeChord } from '@/lib/chords';
 import FavoriteButton from './FavoriteButton';
@@ -16,28 +17,73 @@ const DIFF_STYLE = {
 } as const;
 
 export default function SongHeader({
-  song, semitones, capo,
-}: { song: Song; semitones: number; capo: number }) {
+  song,
+  semitones,
+  capo,
+  isPlayerOpen,
+  onTogglePlayer,
+}: {
+  song: Song;
+  semitones: number;
+  capo: number;
+  isPlayerOpen?: boolean;
+  onTogglePlayer?: () => void;
+}) {
   const currentKey = transposeKey(song.originalKey, semitones);
   const shift = semitones - capo;
   const shownChords = song.chordsUsed.map(c => transposeChord(c, shift, currentKey));
 
   return (
     <header className="border-b border-zinc-800 pb-5 pt-4">
-      <div className="flex items-start justify-between gap-4">
-        <div className="min-w-0">
-          <h1 className="text-2xl font-bold leading-tight sm:text-3xl">
-            {song.title}
-          </h1>
-          <Link
-            href={`/artist/${song.artistId}`}
-            className="mt-1 inline-block text-sm text-zinc-400 hover:text-emerald-400"
-          >
-            {song.artist}
-          </Link>
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+        <div className="flex items-start gap-3 sm:gap-4 min-w-0">
+          {song.coverImage && (
+            <div className="relative group shrink-0 w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden border border-zinc-800 bg-zinc-900 shadow-md">
+              <img
+                src={song.coverImage}
+                alt={song.title}
+                className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+              />
+              {song.youtubeId && onTogglePlayer && (
+                <button
+                  onClick={onTogglePlayer}
+                  className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity"
+                  title="ดู MV / ฟังเพลง"
+                >
+                  <Play size={22} className="fill-white text-white drop-shadow" />
+                </button>
+              )}
+            </div>
+          )}
+
+          <div className="min-w-0">
+            <h1 className="text-2xl font-bold leading-tight sm:text-3xl text-zinc-100">
+              {song.title}
+            </h1>
+            <Link
+              href={`/artist/${song.artistId}`}
+              className="mt-1 inline-block text-sm text-zinc-400 hover:text-emerald-400 transition-colors"
+            >
+              {song.artist}
+            </Link>
+          </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {song.youtubeId && onTogglePlayer && (
+            <button
+              onClick={onTogglePlayer}
+              className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold transition shadow-sm ${
+                isPlayerOpen
+                  ? 'bg-red-500/20 text-red-400 ring-1 ring-red-500/40 hover:bg-red-500/30'
+                  : 'bg-zinc-800 text-zinc-200 hover:bg-red-600 hover:text-white ring-1 ring-zinc-700'
+              }`}
+            >
+              <YoutubeIcon size={14} className={isPlayerOpen ? 'text-red-400' : 'text-red-500'} />
+              <span>{isPlayerOpen ? 'ซ่อน MV' : 'ดู MV / ฟังเพลง'}</span>
+            </button>
+          )}
+
           <SongOwnerActions song={song} />
           <AddToPlaylistButton
             songId={song.id}

@@ -18,6 +18,7 @@ export interface Song {
   tags: string[];
   difficulty: Difficulty;
   youtubeId?: string;
+  coverImage?: string;
   viewCount: number;
   status: SongStatus;
   createdBy: string;
@@ -32,6 +33,8 @@ export interface SongListItem {
   artist: string;
   originalKey: string;
   difficulty: Difficulty;
+  coverImage?: string;
+  youtubeId?: string;
 }
 
 export interface SongSettings {

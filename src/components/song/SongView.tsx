@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import type { Song } from '@/types/song';
 import { useSongSettings } from '@/hooks/useSongSettings';
@@ -13,8 +13,11 @@ import ControlBar from './ControlBar';
 import MobileDock from './MobileDock';
 import ChordSheet from './ChordSheet';
 import PlaylistSidebar from './PlaylistSidebar';
+import YouTubePlayer from './YouTubePlayer';
 
 export default function SongView({ song }: { song: Song }) {
+  const [isPlayerOpen, setIsPlayerOpen] = useState(false);
+
   const {
     semitones, capo, fontSize, showChords, scrollSpeed, isScrolling,
     setSemitones, setCapo, setFontSize, toggleChords,
@@ -77,7 +80,25 @@ export default function SongView({ song }: { song: Song }) {
       <PlaylistSidebar currentSlug={song.slug} />
 
       <div className={`mx-auto max-w-4xl px-4 transition-all duration-300 ${hasPlaylistContext ? 'mr-72 sm:mr-80' : ''}`}>
-        <SongHeader song={song} semitones={semitones} capo={capo} />
+        <SongHeader
+          song={song}
+          semitones={semitones}
+          capo={capo}
+          isPlayerOpen={isPlayerOpen}
+          onTogglePlayer={() => setIsPlayerOpen(!isPlayerOpen)}
+        />
+
+        {/* YouTube Video Player */}
+        {song.youtubeId && (
+          <YouTubePlayer
+            youtubeId={song.youtubeId}
+            songTitle={song.title}
+            artist={song.artist}
+            coverImage={song.coverImage}
+            isOpen={isPlayerOpen}
+            onClose={() => setIsPlayerOpen(false)}
+          />
+        )}
 
         {/* Desktop / Tablet */}
         <div className="hidden md:block">

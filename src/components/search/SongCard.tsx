@@ -35,20 +35,40 @@ export default function SongCard({
                    bg-zinc-900/50 p-3.5 transition
                    hover:border-emerald-500/50 hover:bg-zinc-900"
             >
-                <div className="flex items-start justify-between gap-2">
-                    <h3 className="line-clamp-2 text-sm font-semibold leading-snug
-                         group-hover:text-emerald-400">
-                        <Highlight text={item.t} query={query} />
-                    </h3>
-                    <span className="shrink-0 rounded-md bg-zinc-800 px-1.5 py-0.5
-                           font-mono text-[11px] font-bold text-emerald-400">
-                        {item.k}
-                    </span>
-                </div>
+                <div className="flex items-start gap-3">
+                    {item.img && (
+                        <div className="relative shrink-0 w-12 h-12 rounded-lg overflow-hidden border border-zinc-800 bg-zinc-950">
+                            <img
+                                src={item.img}
+                                alt={item.t}
+                                className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                                onError={e => { (e.target as HTMLElement).style.display = 'none'; }}
+                            />
+                            {item.yt && (
+                                <span className="absolute bottom-1 right-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-red-600 text-white text-[8px] shadow">
+                                    ▶
+                                </span>
+                            )}
+                        </div>
+                    )}
 
-                <p className="mt-1 line-clamp-1 text-xs text-zinc-500">
-                    <Highlight text={item.a} query={query} />
-                </p>
+                    <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-1.5">
+                            <h3 className="line-clamp-2 text-sm font-semibold leading-snug
+                                 group-hover:text-emerald-400">
+                                <Highlight text={item.t} query={query} />
+                            </h3>
+                            <span className="shrink-0 rounded-md bg-zinc-800 px-1.5 py-0.5
+                                   font-mono text-[11px] font-bold text-emerald-400">
+                                {item.k}
+                            </span>
+                        </div>
+
+                        <p className="mt-0.5 line-clamp-1 text-xs text-zinc-500">
+                            <Highlight text={item.a} query={query} />
+                        </p>
+                    </div>
+                </div>
 
                 {/* คอร์ดที่ใช้ */}
                 <div className="mt-2.5 flex flex-wrap gap-1">

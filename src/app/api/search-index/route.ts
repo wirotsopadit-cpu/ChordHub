@@ -33,6 +33,8 @@ export async function GET() {
             tg: d.tags ?? [],
             v: d.viewCount ?? 0,
             ts: d.createdAt?.toMillis?.() ?? Date.now(),
+            img: d.coverImage || (d.youtubeId ? `https://img.youtube.com/vi/${d.youtubeId}/hqdefault.jpg` : undefined),
+            yt: d.youtubeId || undefined,
             nt: normalizeThai(d.title ?? ''),
             na: normalizeThai(d.artist ?? ''),
             ...(d.alias ? { al: normalizeThai(d.alias) } : {}),
@@ -61,6 +63,8 @@ export async function GET() {
       tg: s.tags,
       v: s.viewCount,
       ts: new Date(s.createdAt).getTime(),
+      img: s.coverImage || (s.youtubeId ? `https://img.youtube.com/vi/${s.youtubeId}/hqdefault.jpg` : undefined),
+      yt: s.youtubeId,
       nt: normalizeThai(s.title),
       na: normalizeThai(s.artist),
     }));

@@ -14,6 +14,8 @@ export interface SearchItem {
     tg: string[];       // tags
     v: number;          // viewCount
     ts: number;         // createdAt (epoch ms)
+    img?: string;       // cover image / YouTube thumbnail URL
+    yt?: string;        // youtubeId
     // ฟิลด์ normalize สำหรับค้นหา (สร้างตอน build index)
     nt: string;         // normalized title
     na: string;         // normalized artist

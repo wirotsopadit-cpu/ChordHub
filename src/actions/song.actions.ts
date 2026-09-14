@@ -4,6 +4,7 @@ import { adminDb } from '@/lib/firebase.admin';
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { revalidatePath } from 'next/cache';
 import type { Song, Difficulty } from '@/types/song';
+import { extractYouTubeId, getYouTubeThumbnail } from '@/lib/youtube';
 
 /**
  * สกัดคอร์ดทั้งหมดที่ใช้จากเนื้อหา ChordPro โดยอัตโนมัติ
@@ -41,6 +42,9 @@ export interface CreateSongInput {
   tags?: string[];
   difficulty?: Difficulty;
   slug?: string;
+  youtubeUrl?: string;
+  youtubeId?: string;
+  coverImage?: string;
   createdBy?: string;
   createdByName?: string;
 }
@@ -61,6 +65,9 @@ export async function createSong(input: CreateSongInput): Promise<{ ok: boolean;
     const slug = input.slug?.trim() || createSlug(input.title, input.artist);
     const chordsUsed = extractChords(input.chordpro);
 
+    const youtubeId = extractYouTubeId(input.youtubeUrl) || extractYouTubeId(input.youtubeId) || undefined;
+    const coverImage = input.coverImage?.trim() || (youtubeId ? getYouTubeThumbnail(youtubeId) : undefined);
+
     const newSongData: Record<string, any> = {
       title: input.title.trim(),
       artist: input.artist.trim(),
@@ -75,6 +82,8 @@ export async function createSong(input: CreateSongInput): Promise<{ ok: boolean;
       chordsUsed,
       tags: input.tags ?? [],
       difficulty: input.difficulty || 'medium',
+      youtubeId: youtubeId || null,
+      coverImage: coverImage || null,
       status: 'published',
       viewCount: 0,
       createdBy: input.createdBy?.trim() || 'admin',
@@ -135,6 +144,18 @@ export async function updateSongAction(
     if (input.strumming !== undefined) updates.strumming = input.strumming.trim();
     if (input.difficulty) updates.difficulty = input.difficulty;
     if (input.tags) updates.tags = input.tags;
+
+    if (input.youtubeUrl !== undefined || input.youtubeId !== undefined) {
+      const parsedYt = extractYouTubeId(input.youtubeUrl) || extractYouTubeId(input.youtubeId) || null;
+      updates.youtubeId = parsedYt;
+      if (!input.coverImage && parsedYt) {
+        updates.coverImage = getYouTubeThumbnail(parsedYt);
+      }
+    }
+
+    if (input.coverImage !== undefined) {
+      updates.coverImage = input.coverImage.trim() || null;
+    }
 
     if (input.chordpro) {
       updates.chordpro = input.chordpro.trim();
@@ -223,6 +244,7 @@ export async function getUserUploadedSongs(userId: string): Promise<Song[]> {
         tags: d.tags || [],
         difficulty: d.difficulty || 'medium',
         youtubeId: d.youtubeId || undefined,
+        coverImage: d.coverImage || (d.youtubeId ? getYouTubeThumbnail(d.youtubeId) : undefined),
         viewCount: d.viewCount || 0,
         status: d.status || 'published',
         createdBy: d.createdBy || '',
@@ -270,6 +292,7 @@ export async function getSongForEditAction(
       tags: d.tags || [],
       difficulty: d.difficulty || 'medium',
       youtubeId: d.youtubeId || undefined,
+      coverImage: d.coverImage || (d.youtubeId ? getYouTubeThumbnail(d.youtubeId) : undefined),
       viewCount: d.viewCount || 0,
       status: d.status || 'published',
       createdBy: d.createdBy || '',

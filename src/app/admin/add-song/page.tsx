@@ -30,12 +30,15 @@ import {
   LogIn,
   Save,
   Check,
+  Image as ImageIcon,
 } from 'lucide-react';
+import YoutubeIcon from '@/components/icons/YoutubeIcon';
 import Link from 'next/link';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '@/lib/firebase.client';
 import ChordSheet from '@/components/song/ChordSheet';
 import { transposeKey } from '@/lib/chords';
+import { extractYouTubeId, getYouTubeThumbnail } from '@/lib/youtube';
 import {
   createSong,
   updateSongAction,
@@ -138,6 +141,8 @@ function AddSongForm() {
     tags: 'เพลงฮิต, ป็อป',
     slug: '',
     chordpro: SAMPLE_CHORDPRO,
+    youtubeUrl: '',
+    coverImage: '',
   });
 
   // Auth Subscription
@@ -192,6 +197,8 @@ function AddSongForm() {
               tags: Array.isArray(s.tags) ? s.tags.join(', ') : 'เพลงฮิต',
               slug: s.slug,
               chordpro: s.chordpro,
+              youtubeUrl: s.youtubeId ? `https://www.youtube.com/watch?v=${s.youtubeId}` : '',
+              coverImage: s.coverImage || '',
             });
           }
         } else {
@@ -209,6 +216,10 @@ function AddSongForm() {
 
   // Derived: detected chords
   const detectedChords = useMemo(() => extractChordsFromText(form.chordpro), [form.chordpro]);
+
+  // Derived: detected YouTube ID and effective cover thumbnail
+  const detectedYtId = useMemo(() => extractYouTubeId(form.youtubeUrl), [form.youtubeUrl]);
+  const activeCoverPreview = form.coverImage?.trim() || (detectedYtId ? getYouTubeThumbnail(detectedYtId, 'hq') : null);
 
   // Current transposed key in preview
   const currentPreviewKey = useMemo(() => {
@@ -427,6 +438,8 @@ function AddSongForm() {
             difficulty: form.difficulty,
             tags: form.tags.split(',').map(t => t.trim()).filter(Boolean),
             chordpro: form.chordpro,
+            youtubeUrl: form.youtubeUrl,
+            coverImage: form.coverImage,
           },
           member.uid
         );
@@ -450,6 +463,8 @@ function AddSongForm() {
           tags: form.tags.split(',').map(t => t.trim()).filter(Boolean),
           slug: form.slug ? form.slug.trim() : undefined,
           chordpro: form.chordpro,
+          youtubeUrl: form.youtubeUrl,
+          coverImage: form.coverImage,
           createdBy: member.uid,
           createdByName: member.displayName,
         });
@@ -853,6 +868,125 @@ function AddSongForm() {
                   className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-3.5 py-2 text-xs text-zinc-100 outline-none focus:border-emerald-500"
                 />
               </div>
+            </div>
+
+            {/* ═══ YOUTUBE & COVER IMAGE SECTION ═══ */}
+            <div className="rounded-2xl border border-zinc-800 bg-zinc-950/70 p-4 space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-red-600/20 text-red-400">
+                    <YoutubeIcon size={14} />
+                  </span>
+                  <h4 className="text-xs font-bold text-zinc-200">วิดีโอ YouTube & รูปภาพประกอบหน้าปก</h4>
+                </div>
+                {detectedYtId && (
+                  <span className="inline-flex items-center gap-1 rounded-md bg-emerald-500/15 border border-emerald-500/30 px-2 py-0.5 text-[10px] font-medium text-emerald-400">
+                    <Check size={10} /> พบรหัสวิดีโอ: {detectedYtId}
+                  </span>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* YouTube Link */}
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-300 mb-1.5 flex items-center justify-between">
+                    <span>ลิงก์ YouTube (MV / คลิปเพลง)</span>
+                    <span className="text-[10px] text-zinc-500 font-normal">แชร์ / URL / Shorts</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={form.youtubeUrl}
+                      onChange={e => setForm(f => ({ ...f, youtubeUrl: e.target.value }))}
+                      placeholder="https://www.youtube.com/watch?v=... หรือ youtu.be/..."
+                      className="w-full rounded-xl border border-zinc-700 bg-zinc-900 px-3.5 py-2 text-xs text-zinc-100 outline-none focus:border-red-500 placeholder-zinc-500 pr-8"
+                    />
+                    {form.youtubeUrl && (
+                      <button
+                        type="button"
+                        onClick={() => setForm(f => ({ ...f, youtubeUrl: '' }))}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 text-xs"
+                      >
+                        <X size={12} />
+                      </button>
+                    )}
+                  </div>
+                  <p className="mt-1 text-[10px] text-zinc-500">
+                    เมื่อใส่ลิงก์ YouTube ระบบจะดึงรูปหน้าปก Thumbnail มาใช้เป็นภาพประกอบเพลงให้อัตโนมัติ
+                  </p>
+                </div>
+
+                {/* Cover Image URL */}
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-300 mb-1.5 flex items-center justify-between">
+                    <span>รูปภาพหน้าปกเพลง (Cover Image URL)</span>
+                    <span className="text-[10px] text-zinc-500 font-normal">ใส่ URL เองหรือใช้จาก YouTube</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="url"
+                      value={form.coverImage}
+                      onChange={e => setForm(f => ({ ...f, coverImage: e.target.value }))}
+                      placeholder={detectedYtId ? "ใช้รูปจาก YouTube Thumbnail อัตโนมัติ" : "https://... (รูปภาพหน้าปก)"}
+                      className="w-full rounded-xl border border-zinc-700 bg-zinc-900 px-3.5 py-2 text-xs text-zinc-100 outline-none focus:border-emerald-500 placeholder-zinc-500 pr-8"
+                    />
+                    {form.coverImage && (
+                      <button
+                        type="button"
+                        onClick={() => setForm(f => ({ ...f, coverImage: '' }))}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 text-xs"
+                      >
+                        <X size={12} />
+                      </button>
+                    )}
+                  </div>
+                  {detectedYtId && (
+                    <div className="mt-1 flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setForm(f => ({ ...f, coverImage: getYouTubeThumbnail(detectedYtId, 'hq') }))}
+                        className="text-[10px] text-emerald-400 hover:underline inline-flex items-center gap-1"
+                      >
+                        <ImageIcon size={10} /> คัดลอกรูปจาก YouTube มาใส่ช่องนี้
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Live Preview Box if Thumbnail Available */}
+              {activeCoverPreview && (
+                <div className="flex items-center gap-3 rounded-xl border border-zinc-800 bg-zinc-900/90 p-2.5">
+                  <div className="relative aspect-video w-24 shrink-0 overflow-hidden rounded-lg border border-zinc-700 bg-black">
+                    <img
+                      src={activeCoverPreview}
+                      alt="Cover Preview"
+                      className="h-full w-full object-cover"
+                      onError={e => {
+                        (e.target as HTMLElement).style.display = 'none';
+                      }}
+                    />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[11px] font-semibold text-zinc-300 truncate">
+                      ตัวอย่างภาพหน้าปกและวิดีโอที่จะแสดงในระบบ
+                    </p>
+                    <p className="text-[10px] text-zinc-500 truncate mt-0.5">
+                      {form.coverImage ? 'ใช้รูปกำหนดเอง' : 'ใช้ภาพ Thumbnail อัตโนมัติจาก YouTube'}
+                    </p>
+                    {detectedYtId && (
+                      <a
+                        href={`https://www.youtube.com/watch?v=${detectedYtId}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-1 inline-flex items-center gap-1 text-[10px] text-red-400 hover:text-red-300 hover:underline"
+                      >
+                        <ExternalLink size={10} /> ทดสอบเปิดดูคลิปบน YouTube
+                      </a>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* ChordPro Editor */}
