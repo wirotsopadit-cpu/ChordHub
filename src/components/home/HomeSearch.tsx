@@ -92,18 +92,39 @@ export default function HomeSearch({ initialSongs }: { initialSongs: Song[] }) {
               <Link
                 key={song.id}
                 href={`/song/${song.slug}`}
+                prefetch={true}
                 className="group flex flex-col justify-between rounded-2xl border border-zinc-800/80 bg-zinc-900/60 p-4 transition hover:border-emerald-500/50 hover:bg-zinc-900 shadow-md hover:shadow-emerald-950/20"
               >
-                <div className="flex items-start justify-between gap-3">
+                <div className="flex items-start gap-3.5">
+                  {song.coverImage && (
+                    <div className="relative shrink-0 w-12 h-12 rounded-xl overflow-hidden border border-zinc-800 bg-zinc-950">
+                      <img
+                        src={song.coverImage}
+                        alt={song.title}
+                        loading="lazy"
+                        decoding="async"
+                        className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                        onError={e => { (e.target as HTMLElement).style.display = 'none'; }}
+                      />
+                      {song.youtubeId && (
+                        <span className="absolute bottom-1 right-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-red-600 text-white text-[8px] shadow">
+                          ▶
+                        </span>
+                      )}
+                    </div>
+                  )}
+
                   <div className="min-w-0 flex-1">
-                    <h3 className="font-bold text-base text-zinc-100 group-hover:text-emerald-400 transition truncate">
-                      {song.title}
-                    </h3>
+                    <div className="flex items-start justify-between gap-2">
+                      <h3 className="font-bold text-base text-zinc-100 group-hover:text-emerald-400 transition truncate">
+                        {song.title}
+                      </h3>
+                      <span className="shrink-0 rounded-lg bg-zinc-800 border border-zinc-700 px-2 py-0.5 font-mono text-[11px] font-bold text-emerald-400">
+                        คีย์ {song.originalKey}
+                      </span>
+                    </div>
                     <p className="text-xs text-zinc-400 mt-0.5 truncate">{song.artist}</p>
                   </div>
-                  <span className="shrink-0 rounded-lg bg-zinc-800 border border-zinc-700 px-2.5 py-1 font-mono text-xs font-bold text-emerald-400">
-                    คีย์ {song.originalKey}
-                  </span>
                 </div>
 
                 <div className="mt-4 flex items-center justify-between pt-3 border-t border-zinc-800/60 text-xs">

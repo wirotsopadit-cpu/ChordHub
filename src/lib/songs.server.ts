@@ -1,5 +1,6 @@
 import 'server-only';
 import { cache } from 'react';
+import { unstable_cache } from 'next/cache';
 import { adminDb } from './firebase.admin';
 import type { Song, SongListItem } from '@/types/song';
 import { Timestamp } from 'firebase-admin/firestore';
@@ -216,9 +217,9 @@ function mapSong(id: string, d: Record<string, any>): Song {
 }
 
 /**
- * ดึงรายการเพลงทั้งหมด (ใช้ในหน้าแรก หรือ ค้นหา)
+ * ดึงรายการเพลงทั้งหมด (ใช้ในหน้าแรก หรือ ค้นหา) — แคชระดับ Server/Edge 5 นาที
  */
-export const getAllSongs = cache(async (): Promise<Song[]> => {
+const fetchAllSongs = async (): Promise<Song[]> => {
   if (adminDb) {
     try {
       const snap = await adminDb
@@ -237,12 +238,20 @@ export const getAllSongs = cache(async (): Promise<Song[]> => {
   }
 
   return MOCK_SONGS;
+};
+
+export const getAllSongs = cache(async (): Promise<Song[]> => {
+  return unstable_cache(
+    fetchAllSongs,
+    ['all-songs-cache'],
+    { revalidate: 300, tags: ['songs'] }
+  )();
 });
 
 /**
- * ดึงเพลงด้วย slug — ห่อด้วย React cache() เพื่อไม่ให้ query ซ้ำ
+ * ดึงเพลงด้วย slug — แคชระดับ Server/Edge 1 ชม. และล้างแคชทันทีเมื่อเพลงถูกแก้ไข
  */
-export const getSongBySlug = cache(async (slug: string): Promise<Song | null> => {
+const fetchSongBySlug = async (slug: string): Promise<Song | null> => {
   if (adminDb) {
     try {
       const snap = await adminDb
@@ -263,58 +272,78 @@ export const getSongBySlug = cache(async (slug: string): Promise<Song | null> =>
 
   const found = MOCK_SONGS.find(s => s.slug === slug || s.id === slug);
   return found ?? null;
+};
+
+export const getSongBySlug = cache(async (slug: string): Promise<Song | null> => {
+  return unstable_cache(
+    () => fetchSongBySlug(slug),
+    [`song-${slug}`],
+    { revalidate: 3600, tags: ['songs', `song-${slug}`] }
+  )();
 });
 
-/** เพลงอื่นของศิลปินเดียวกัน (แสดงท้ายหน้า) */
+/** เพลงอื่นของศิลปินเดียวกัน (แสดงท้ายหน้า) — แคช 1 ชม. */
+const fetchRelatedSongs = async (artistId: string, excludeId: string, max: number): Promise<SongListItem[]> => {
+  if (!artistId) return [];
+
+  if (adminDb) {
+    try {
+      const snap = await adminDb
+        .collection('songs')
+        .where('artistId', '==', artistId)
+        .limit(max + 5)
+        .get();
+
+      if (!snap.empty) {
+        return snap.docs
+          .filter(d => d.id !== excludeId && d.data()?.status === 'published')
+          .slice(0, max)
+          .map(d => {
+            const x = d.data();
+            return {
+              id: d.id,
+              slug: x.slug ?? d.id,
+              title: x.title,
+              artist: x.artist,
+              originalKey: x.originalKey ?? 'C',
+              difficulty: x.difficulty ?? 'medium',
+              coverImage: x.coverImage || (x.youtubeId ? `https://img.youtube.com/vi/${x.youtubeId}/hqdefault.jpg` : undefined),
+              youtubeId: x.youtubeId,
+            };
+          });
+      }
+    } catch (err) {
+      console.warn('[getRelatedSongs] Firebase query failed, fallback to mock:', err);
+    }
+  }
+
+  return MOCK_SONGS
+    .filter(s => s.id !== excludeId && (s.artistId === artistId || artistId === 'all'))
+    .slice(0, max)
+    .map(s => ({
+      id: s.id,
+      slug: s.slug,
+      title: s.title,
+      artist: s.artist,
+      originalKey: s.originalKey,
+      difficulty: s.difficulty,
+      coverImage: s.coverImage,
+      youtubeId: s.youtubeId,
+    }));
+};
+
 export const getRelatedSongs = cache(
   async (artistId: string, excludeId: string, max = 6): Promise<SongListItem[]> => {
-    if (!artistId) return [];
-
-    if (adminDb) {
-      try {
-        const snap = await adminDb
-          .collection('songs')
-          .where('artistId', '==', artistId)
-          .limit(max + 5)
-          .get();
-
-        if (!snap.empty) {
-          return snap.docs
-            .filter(d => d.id !== excludeId && d.data()?.status === 'published')
-            .slice(0, max)
-            .map(d => {
-              const x = d.data();
-              return {
-                id: d.id,
-                slug: x.slug ?? d.id,
-                title: x.title,
-                artist: x.artist,
-                originalKey: x.originalKey ?? 'C',
-                difficulty: x.difficulty ?? 'medium',
-              };
-            });
-        }
-      } catch (err) {
-        console.warn('[getRelatedSongs] Firebase query failed, fallback to mock:', err);
-      }
-    }
-
-    return MOCK_SONGS
-      .filter(s => s.id !== excludeId && (s.artistId === artistId || artistId === 'all'))
-      .slice(0, max)
-      .map(s => ({
-        id: s.id,
-        slug: s.slug,
-        title: s.title,
-        artist: s.artist,
-        originalKey: s.originalKey,
-        difficulty: s.difficulty,
-      }));
-  },
+    return unstable_cache(
+      () => fetchRelatedSongs(artistId, excludeId, max),
+      [`related-${artistId}-${excludeId}-${max}`],
+      { revalidate: 3600, tags: ['songs'] }
+    )();
+  }
 );
 
 /** สำหรับ generateStaticParams — pre-render เพลงยอดนิยม */
-export async function getPopularSlugs(limit = 200): Promise<string[]> {
+const fetchPopularSlugs = async (limit: number): Promise<string[]> => {
   if (adminDb) {
     try {
       const snap = await adminDb
@@ -332,4 +361,12 @@ export async function getPopularSlugs(limit = 200): Promise<string[]> {
   }
 
   return MOCK_SONGS.slice(0, limit).map(s => s.slug);
+};
+
+export async function getPopularSlugs(limit = 200): Promise<string[]> {
+  return unstable_cache(
+    () => fetchPopularSlugs(limit),
+    [`popular-slugs-${limit}`],
+    { revalidate: 3600, tags: ['songs'] }
+  )();
 }

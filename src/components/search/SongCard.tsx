@@ -30,7 +30,7 @@ export default function SongCard({
         <li>
             <Link
                 href={href}
-                prefetch={false}
+                prefetch={true}
                 className="group flex h-full flex-col rounded-xl border border-zinc-800
                    bg-zinc-900/50 p-3.5 transition
                    hover:border-emerald-500/50 hover:bg-zinc-900"
@@ -41,6 +41,8 @@ export default function SongCard({
                             <img
                                 src={item.img}
                                 alt={item.t}
+                                loading="lazy"
+                                decoding="async"
                                 className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
                                 onError={e => { (e.target as HTMLElement).style.display = 'none'; }}
                             />

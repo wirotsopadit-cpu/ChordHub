@@ -2,7 +2,7 @@
 
 import { adminDb } from '@/lib/firebase.admin';
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
-import { revalidatePath } from 'next/cache';
+import { revalidatePath, revalidateTag } from 'next/cache';
 import type { Song, Difficulty } from '@/types/song';
 import { extractYouTubeId, getYouTubeThumbnail } from '@/lib/youtube';
 
@@ -101,6 +101,7 @@ export async function createSong(input: CreateSongInput): Promise<{ ok: boolean;
     revalidatePath('/search');
     revalidatePath(`/song/${slug}`);
     revalidatePath('/api/search-index');
+    revalidateTag('songs');
 
     return { ok: true, slug };
   } catch (err: any) {
@@ -168,6 +169,7 @@ export async function updateSongAction(
     revalidatePath('/search');
     revalidatePath(`/song/${slug}`);
     revalidatePath('/api/search-index');
+    revalidateTag('songs');
 
     return { ok: true };
   } catch (err: any) {
@@ -203,6 +205,7 @@ export async function deleteSongAction(
     revalidatePath('/search');
     revalidatePath(`/song/${slug}`);
     revalidatePath('/api/search-index');
+    revalidateTag('songs');
 
     return { ok: true };
   } catch (err: any) {

@@ -1,6 +1,22 @@
 import type { Metadata, Viewport } from 'next';
+import Link from 'next/link';
+import { Prompt, JetBrains_Mono } from 'next/font/google';
 import './globals.css';
 import NavbarUserButton from '@/components/layout/NavbarUserButton';
+
+const prompt = Prompt({
+  weight: ['300', '400', '500', '600', '700'],
+  subsets: ['thai', 'latin'],
+  variable: '--font-thai',
+  display: 'swap',
+});
+
+const jetbrainsMono = JetBrains_Mono({
+  weight: ['400', '500', '600'],
+  subsets: ['latin'],
+  variable: '--font-mono',
+  display: 'swap',
+});
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'),
@@ -26,34 +42,26 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="th" className="dark scroll-smooth">
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
-          rel="stylesheet"
-        />
-      </head>
+    <html lang="th" className={`${prompt.variable} ${jetbrainsMono.variable} dark scroll-smooth`}>
       <body className="min-h-dvh bg-zinc-950 font-sans text-zinc-100 antialiased selection:bg-emerald-500/30 selection:text-emerald-300">
         <header className="sticky top-0 z-50 border-b border-zinc-800/80 bg-zinc-950/80 backdrop-blur-xl supports-[backdrop-filter]:bg-zinc-950/60 no-print">
           <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-4 sm:px-6">
-            <a href="/" className="flex items-center gap-2 group">
+            <Link href="/" className="flex items-center gap-2 group">
               <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500 font-mono font-bold text-zinc-950 transition group-hover:scale-105">
                 🎸
               </span>
               <span className="font-bold tracking-tight text-lg sm:text-xl text-zinc-100">
                 Chord<span className="text-emerald-400">Hub</span>
               </span>
-            </a>
+            </Link>
 
             <nav className="flex items-center gap-3 sm:gap-4 text-sm font-medium text-zinc-400">
-              <a href="/" className="hover:text-emerald-400 transition">หน้าแรก</a>
-              <a href="/search" className="hover:text-emerald-400 transition flex items-center gap-1">
+              <Link href="/" className="hover:text-emerald-400 transition">หน้าแรก</Link>
+              <Link href="/search" className="hover:text-emerald-400 transition flex items-center gap-1">
                 <span>ค้นหาเพลง</span>
-              </a>
-              <a href="/#popular" className="hover:text-emerald-400 transition hidden sm:inline">เพลงฮิต</a>
-              <a href="/#chords" className="hover:text-emerald-400 transition hidden sm:inline">ตารางคอร์ด</a>
+              </Link>
+              <Link href="/#popular" className="hover:text-emerald-400 transition hidden sm:inline">เพลงฮิต</Link>
+              <Link href="/#chords" className="hover:text-emerald-400 transition hidden sm:inline">ตารางคอร์ด</Link>
 
               <NavbarUserButton />
             </nav>

@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { Suspense } from 'react';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { getSongBySlug, getRelatedSongs, getPopularSlugs } from '@/lib/songs.server';
@@ -103,8 +104,16 @@ export default async function SongPage({ params }: Props) {
         {/* ส่วน interactive ทั้งหมด */}
         <SongView song={song} />
 
-        {/* ระบบแสดงความคิดเห็น ตอบกลับ และกดถูกใจ */}
-        <CommentSection songId={song.id} songSlug={song.slug} songTitle={song.title} />
+        {/* ระบบแสดงความคิดเห็น ตอบกลับ และกดถูกใจ (Streamed Progressive Hydration) */}
+        <Suspense
+          fallback={
+            <div className="mx-auto max-w-4xl px-4 py-8">
+              <div className="h-36 rounded-2xl border border-zinc-800/60 bg-zinc-900/40 animate-pulse" />
+            </div>
+          }
+        >
+          <CommentSection songId={song.id} songSlug={song.slug} songTitle={song.title} />
+        </Suspense>
 
         {/* เพลงอื่นของศิลปิน */}
         {related.length > 0 && (
